@@ -2,6 +2,7 @@
 from classes.format import bcolors
 import matplotlib.pyplot as plot
 import pandas as pd
+import os
 import numpy as np
 import math
 import tkinter as tk
@@ -45,12 +46,20 @@ signalData = cpx
 
 plot.subplot(211)
 plot.title('Spectrogram of ' + file_path)
-plot.plot(ampl)
+plot.plot(ampl - np.mean(ampl))
 plot.xlabel('Sample')
 plot.ylabel('Amplitude')
 
 plot.subplot(212)
-plot.specgram(signalData, Fs=samplingFrequency)
+plot.specgram(signalData - np.mean(signalData), Fs=samplingFrequency)
 plot.xlabel('Time')
 plot.ylabel('Frequency')
-plot.show()
+plot.colorbar()
+plot.clim(-110, -80)
+# plot.show()
+
+save_name = os.path.splitext(file_path)[0]
+
+plot.savefig(save_name + '2.png')
+print("Saved as " + save_name + '2.png')
+
