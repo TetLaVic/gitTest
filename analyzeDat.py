@@ -17,7 +17,7 @@ import pandas as pd
 from scipy import signal
 import os
 import numpy as np
-import math
+from skimage.morphology import skeletonize_3d
 import tkinter as tk
 from tkinter import filedialog
 
@@ -53,7 +53,7 @@ for file_path in file_paths:
     # Check if IQ (number of channels == 2)
     if preproc_data.shape[1] == 2:
         preproc_data['complex'] = preproc_data[0] + preproc_data[1] * 1j
-        preproc_data['delta'] = preproc_data[0] - preproc_data[1]
+        # preproc_data['delta'] = preproc_data[0] - preproc_data[1]
         print("\n Data with I&Q. \n")
     else:
         preproc_data['average'] = preproc_data.mean(numeric_only=True, axis=1)  # Add column with row average for all recorded channels
@@ -90,12 +90,16 @@ for file_path in file_paths:
 
         # ax2: Frequency domain
         Pxx, freqs, bins, im = ax2.specgram(ch_data, Fs=samplingFrequency/downsample_factor,
-                                            NFFT=2048, noverlap=512, window=signal.get_window('hann', 2048))
+                                            NFFT=2048, noverlap=512, window=signal.get_window('blackman', 2048))
 
         # - Pxx: the periodogram
         # - freqs: the frequency vector
         # - bins: the centers of the time bins
         # - im: the matplotlib.image.AxesImage instance representing the data in the plot
+
+        # Test1:
+        from classes.myImageFunctions import find_local_max
+        # find_local_max(Pxx, 5, 1 * 10**-8)
 
         # Velocity from frequency
         velocity = (freqs*c) / (2*freq_tx)
@@ -117,8 +121,18 @@ for file_path in file_paths:
         # 2b)
         # plot_data = feature.canny(plot_data, low_threshold  = 0.30 * np.max(plot_data),
         #                           high_threshold=0.40 * np.max(plot_data))
-        
 
+        # perform skeletonization
+        Sxx = np.where(plot_data > np.percentile(plot_data, 99), 1, 0)
+        skeleton = skeletonize_3d(Sxx)
+
+        # display results
+        plot.figure(4)
+        plot.pcolormesh(Sxx, cmap=plot.cm.gray)
+        plot.axis('off')
+        plot.savefig('skeleton.png', bbox_inches='tight')
+
+        plot.figure(fig.number)
         # Plot Spectrum
         spec = ax2.pcolormesh(bins, freqs, plot_data, cmap='jet',
                               vmin=np.percentile(plot_data, 95),
@@ -128,8 +142,19 @@ for file_path in file_paths:
         ax2_divider = make_axes_locatable(ax2)
         cax1 = ax2_divider.append_axes("right", size="7%", pad="2%")
         cb1 = colorbar(spec, cax=cax1)
-        
-        
+
+
+        # Test2:
+        # f, t, Sxx = signal.spectrogram(ch_data, samplingFrequency/downsample_factor,
+        #                                window=signal.get_window('blackman', 2048) ,
+        #                                nfft=2048, noverlap=512)
+        img = spec.get_array()
+        img_mask = np.where(img < -80, 0, 1)
+        filtered_img = img_mask * img
+
+        find_local_max(spec, 50, np.percentile(spec, 95))
+
+
         #fft2FromSpec = np.fft.fft2(Pxx)
         #ax3.plot(fft2FromSpec)
         
@@ -145,8 +170,8 @@ for file_path in file_paths:
         ax3_divider = make_axes_locatable(ax3)
         cax2 = ax3_divider.append_axes("right", size="7%", pad="2%")
         cb2 = colorbar(fft2plt, cax=cax2)
-        ax3.set(xlim = (FS.shape[1]/2, FS.shape[1]/2 + 0.25*FS.shape[1]/2))     #ylim = (FS.shape[0]/2, FS.shape[0]/2 + 0.25*FS.shape[1]/2))
-        fig.show()
+        ax3.set(xlim=(FS.shape[1]/2, FS.shape[1]/2 + 0.25*FS.shape[1]/2))     #ylim = (FS.shape[0]/2, FS.shape[0]/2 + 0.25*FS.shape[1]/2))
+        # fig.show()
         
         # [X, Y] = np.meshgrid(Pxx)
         # S = np.sin(X) + np.cos(Y) + np.random.uniform(0, 1, X.shape)
